@@ -1,0 +1,37 @@
+# Python bytecode files
+*.pyc
+*.pyo
+__pycache__/
+
+# Virtual environments
+venv/
+env/
+
+# PyCharm project files
+.idea/
+!/.idea/*.iml
+!/.idea/modules.xml
+!/.idea/vcs.xml
+!/.idea/runConfigurations
+
+# VS Code project files
+.vscode/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# pytest cache
+.cache/
+
+# Distribution / packaging files
+*.egg-info/
+dist/
+build/
+*.egg
+
+# .env files (optional: if you are using environment variables)
+.env
