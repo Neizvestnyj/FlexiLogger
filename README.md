@@ -1,6 +1,6 @@
-# OmniLogger
+# FlexiLogger
 
-OmniLogger is a customizable Python logging library that provides enhanced features for handling logs, including colorized console outputs, log file formatting, and detailed traceback management.
+FlexiLogger is a customizable Python logging library that provides enhanced features for handling logs, including colorized console outputs, log file formatting, and detailed traceback management.
 
 ## Features
 
@@ -14,10 +14,10 @@ OmniLogger is a customizable Python logging library that provides enhanced featu
 
 ## Installation
 
-You can install OmniLogger using pip:
+You can install FlexiLogger using pip:
 
 ```bash
-pip install OmniLogger
+pip install FlexiLogger
 ```
 
 ---
@@ -26,10 +26,10 @@ pip install OmniLogger
 
 ### Basic Usage
 
-To use OmniLogger in your project:
+To use FlexiLogger in your project:
 
 ```python
-from OmniLogger import Logger
+from FlexiLogger import Logger
 
 logger = Logger(__file__, log_file_path="app.log")
 logger.info("This is an info message")
@@ -38,10 +38,10 @@ logger.error("This is an error message")
 
 ### Advanced Traceback Handling
 
-OmniLogger provides a `GetTraceback` class for managing exceptions:
+FlexiLogger provides a `GetTraceback` class for managing exceptions:
 
 ```python
-from OmniLogger import GetTraceback
+from FlexiLogger import GetTraceback
 
 try:
     1 / 0
@@ -54,7 +54,7 @@ except Exception as e:
 
 ## Environment Variables
 
-OmniLogger uses several environment variables to customize its behavior:
+FlexiLogger uses several environment variables to customize its behavior:
 
 | Variable Name              | Description                                                                                       | Default Value |
 |----------------------------|---------------------------------------------------------------------------------------------------|---------------|
@@ -79,7 +79,7 @@ export LOGGER_TIME_INFO="false"
 ## Project Structure
 
 ```
-OmniLogger/
+FlexiLogger/
 ├── __init__.py
 ├── logger.py
 ├── gettraceback.py
@@ -90,7 +90,7 @@ OmniLogger/
 
 ## License
 
-OmniLogger is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+FlexiLogger is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
