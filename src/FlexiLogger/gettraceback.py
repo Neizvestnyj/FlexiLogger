@@ -9,11 +9,11 @@ from .logger import Logger
 
 
 class GetTraceback:
-    def __init__(self, executing_file: str):
+    def __init__(self, logger: Logger):
         """
-        :param executing_file: The file where the logger is being executed
+        :param logger: FlexiLogger Logger class
         """
-        self.console_logger = Logger(executing_file)
+        self.logger = logger
 
     def _get_traceback(self, text: str, print_full_exception=True) -> tuple:
         """
@@ -39,7 +39,7 @@ class GetTraceback:
                 get_line_error = False
                 extracted_tb = None
         except Exception as get_line_except_error:
-            self.console_logger.warning(f"{get_line_except_error}")
+            self.logger.warning(f"{get_line_except_error}")
             get_line_error = False
             extracted_tb = None
 
@@ -86,7 +86,7 @@ class GetTraceback:
         """
 
         _, _, log_text = self._get_traceback(text, print_full_exception)
-        self.console_logger.warning(log_text)
+        self.logger.warning(log_text)
 
     def error(self, text: str, print_full_exception=False):
         """
@@ -97,7 +97,7 @@ class GetTraceback:
         """
 
         _, _, log_text = self._get_traceback(text, print_full_exception)
-        self.console_logger.error(log_text)
+        self.logger.error(log_text)
 
     def critical(self, text: str, print_full_exception=False):
         """
@@ -108,7 +108,7 @@ class GetTraceback:
         """
 
         _, _, log_text = self._get_traceback(text, print_full_exception)
-        self.console_logger.critical(log_text)
+        self.logger.critical(log_text)
 
 
 def _test(get_traceback: GetTraceback):

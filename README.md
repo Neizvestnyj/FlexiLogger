@@ -41,12 +41,14 @@ logger.error("This is an error message")
 FlexiLogger provides a `GetTraceback` class for managing exceptions:
 
 ```python
-from FlexiLogger import GetTraceback
+from FlexiLogger import Logger, GetTraceback
+
+logger = Logger(__file__, log_file_path="app.log")
+traceback_handler = GetTraceback(logger)
 
 try:
     1 / 0
 except Exception as e:
-    traceback_handler = GetTraceback(__file__)
     traceback_handler.error("An error occurred", print_full_exception=True)
 ```
 

@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="FlexiLogger",
-    version="1.0.0",
+    version="1.0.1",
     author="Neizvestnyj",
     author_email="pikromat1995@gmail.com",
     description="A customizable logger and traceback handler for Python applications",
