@@ -4,12 +4,13 @@ import os
 import sys
 from typing import Union
 
+from . import LOG_FILE
+
 os.environ['LOGGER_TIME_INFO'] = 'true'
 
 _LOG_LEVELS = ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET')
 
 
-# Utility function to parse log levels from environment variables
 def get_log_level(env_var: str, default: int) -> int:
     """
     Get logging level from environment variable or use default value.
@@ -39,7 +40,7 @@ class Logger(logging.Logger):
 
     def __init__(self,
                  name: str,
-                 log_file_path: Union[str, None] = None,
+                 log_file_path: Union[str, None] = LOG_FILE,
                  console_log_level: int = logging.DEBUG,
                  file_log_level: int = logging.DEBUG,
                  log_file_open_format="a",
@@ -64,6 +65,7 @@ class Logger(logging.Logger):
         if log_file_path and log_file_path.lower() == 'false':
             log_file_path = None
 
+        self._log_file_path = log_file_path
         super().__init__(name)
 
         self.encoding = encoding
@@ -78,33 +80,32 @@ class Logger(logging.Logger):
         file_log_level = get_log_level('LOGGER_FILE_LOG_LEVEL', file_log_level)
 
         # Add file handler
-        if log_file_path:
-            self._setup_file_handler(log_file_path, log_file_open_format, file_log_level)
+        if self._log_file_path:
+            self._setup_file_handler(log_file_open_format, file_log_level)
 
         # Add console handler
         if is_format:
             self._setup_console_handler(console_log_level)
 
-    def _setup_file_handler(self, log_file_path: str, log_file_open_format: str, file_log_level: int):
+    def _setup_file_handler(self, log_file_open_format: str, file_log_level: int) -> None:
         """
         Set up the file handler for logging.
 
-        :param log_file_path: path to the log file
         :param log_file_open_format: mode for opening the log file (e.g., 'a', 'w')
         :param file_log_level: logging level for the file handler
         """
 
-        if not os.path.exists(log_file_path):
-            with open(log_file_path, 'w', encoding=self.encoding):
-                self.info(f'Log file: {log_file_path} - created')
+        if not os.path.exists(self._log_file_path):
+            with open(self._log_file_path, 'w', encoding=self.encoding):
+                self.info(f'Log file: {self._log_file_path} - created')
 
         fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, self.DATE_FORMAT)
-        file_handler = FormatLogLevelSpaces(log_file_path, mode=log_file_open_format, encoding=self.encoding)
+        file_handler = FormatLogLevelSpaces(self._log_file_path, mode=log_file_open_format, encoding=self.encoding)
         file_handler.setLevel(file_log_level)
         file_handler.setFormatter(fh_formatter)
         self.addHandler(file_handler)
 
-    def _setup_console_handler(self, console_log_level: int):
+    def _setup_console_handler(self, console_log_level: int) -> None:
         """
         Set up the console handler for logging.
 
@@ -116,6 +117,9 @@ class Logger(logging.Logger):
         console.setLevel(console_log_level)
         console.setFormatter(console_color_formatter)
         self.addHandler(console)
+
+    def get_log_file_path(self) -> Union[str, None]:
+        return self._log_file_path
 
 
 class FormatLogLevelSpaces(logging.FileHandler):

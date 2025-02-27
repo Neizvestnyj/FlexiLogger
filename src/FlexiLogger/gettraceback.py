@@ -4,7 +4,6 @@ import traceback
 from traceback import FrameSummary
 from typing import Union
 
-from . import LOG_FILE
 from .logger import Logger
 
 
@@ -50,13 +49,17 @@ class GetTraceback:
 
         return get_line_error, extracted_tb, log_text
 
-    @staticmethod
-    def __write_traceback_to_file():
+    def __write_traceback_to_file(self) -> None:
         """
-        Writes the traceback to the log file if LOG_FILE is defined.
+        Writes the traceback to the log file if `LOG_FILE` or `self.logger.log_file_path` is defined.
         """
-        if LOG_FILE and LOG_FILE.lower() != 'false':
-            with open(LOG_FILE, 'a') as log_file:
+        log_file_path = self.logger.get_log_file_path()
+        if log_file_path and log_file_path.lower() != 'false':
+            if not os.path.exists(log_file_path):
+                mode = 'w'
+            else:
+                mode = 'a'
+            with open(log_file_path, mode) as log_file:
                 traceback.print_exc(file=log_file)
 
     @staticmethod
@@ -77,7 +80,7 @@ class GetTraceback:
 
         return log_text
 
-    def warning(self, text: str, print_full_exception=False):
+    def warning(self, text: str, print_full_exception=False) -> None:
         """
         Logs a warning message with traceback information.
 
@@ -88,7 +91,7 @@ class GetTraceback:
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.warning(log_text)
 
-    def error(self, text: str, print_full_exception=False):
+    def error(self, text: str, print_full_exception=False) -> None:
         """
         Logs an error message with traceback information.
 
@@ -99,7 +102,7 @@ class GetTraceback:
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.error(log_text)
 
-    def critical(self, text: str, print_full_exception=False):
+    def critical(self, text: str, print_full_exception=False) -> None:
         """
         Logs a critical message with traceback information.
 
@@ -111,7 +114,7 @@ class GetTraceback:
         self.logger.critical(log_text)
 
 
-def _test(get_traceback: GetTraceback):
+def _test(get_traceback: GetTraceback) -> None:
     """
     Test function to log different levels of messages.
 
