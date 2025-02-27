@@ -27,18 +27,6 @@ def get_log_level(env_var: str, default: int) -> int:
 class Logger(logging.Logger):
     """
     Customized Logger class for logging to console and optionally to file.
-
-    :param name: which file logging `__file__`
-    :param log_file_path: path to log file, and default is `os.getenv('LOG_PATH')`
-    :param console_log_level: console log level, you can use environment variable `LOGGER_CONSOLE_LOG_LEVEL == INFO|WARNING|ERROR|CRITICAL`
-    :param file_log_level: file log level, you can use environment variable `LOGGER_FILE_LOG_LEVEL == INFO|WARNING|ERROR|CRITICAL`
-    :param log_file_open_format: `w`, `a`, `r`, etc.
-    :param is_format: use format and colorization or not
-    :param time_info: use time information (date format), you can use environment variable `LOGGER_TIME_INFO == true|false (0/1)`
-
-    Log levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
-    If the `log_file_path` parameter is provided, the logs will be visible in the log file.
-    If `is_format = True` as default, log will be formatted and colorized.
     """
 
     FORMAT = (
@@ -57,11 +45,28 @@ class Logger(logging.Logger):
                  log_file_open_format="a",
                  is_format: bool = True,
                  time_info: bool = True,
+                 encoding: str = 'utf-8',
                  ):
+        """
+        :param name: The name of the logger. Typically, this is the module name or a descriptive name for the logger.
+        :param log_file_path: The path to the log file where logs will be written. If None, no file logging will be performed.
+        :param console_log_level: The logging level for the console handler. This determines the severity of messages that will be output to the console. Default is logging.DEBUG, which logs all messages.
+        :param file_log_level: The logging level for the file handler. This determines the severity of messages that will be written to the log file. Default is logging.DEBUG.
+        :param log_file_open_format: The mode in which to open the log file, such as 'a' for append or 'w' for write. Default is 'a' to append to the existing log file.
+        :param is_format: Whether to apply formatting to the log messages. If True, log messages will include additional information like log levels and timestamps. Default is True.
+        :param time_info: Whether to include timestamps in the log messages. If True, each log message will have a timestamp. Default is True.
+        :param encoding: The encoding to use when writing to the log file. Default is 'utf-8'.
+
+        Log levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
+        If the `log_file_path` parameter is provided, the logs will be visible in the log file.
+        If `is_format = True` as default, log will be formatted and colorized.
+        """
         if log_file_path and log_file_path.lower() == 'false':
             log_file_path = None
 
         super().__init__(name)
+
+        self.encoding = encoding
 
         # Enable time formatting if required
         if time_info and os.getenv('LOGGER_TIME_INFO', 'true') in ['true', '1']:
@@ -90,11 +95,11 @@ class Logger(logging.Logger):
         """
 
         if not os.path.exists(log_file_path):
-            with open(log_file_path, 'w'):
+            with open(log_file_path, 'w', encoding=self.encoding):
                 self.info(f'Log file: {log_file_path} - created')
 
         fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, self.DATE_FORMAT)
-        file_handler = FormatLogLevelSpaces(log_file_path, mode=log_file_open_format)
+        file_handler = FormatLogLevelSpaces(log_file_path, mode=log_file_open_format, encoding=self.encoding)
         file_handler.setLevel(file_log_level)
         file_handler.setFormatter(fh_formatter)
         self.addHandler(file_handler)
