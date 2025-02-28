@@ -4,7 +4,10 @@ import traceback
 from traceback import FrameSummary
 from typing import Union
 
-from .logger import Logger
+try:
+    from .logger import Logger
+except ImportError:
+    from logger import Logger
 
 
 class GetTraceback:
@@ -12,7 +15,21 @@ class GetTraceback:
         """
         :param logger: FlexiLogger Logger class
         """
+        if not isinstance(logger, Logger):
+            raise TypeError('logger param must be a Logger')
+
         self.logger = logger
+
+        self._log_file_path = self.logger.get_log_file_path()
+        if self._log_file_path and self._log_file_path.lower() != 'false':
+            if not os.path.exists(self._log_file_path):
+                self._log_mode = 'w'
+            else:
+                self._log_mode = 'a'
+
+            self._encoding = self.logger.get_encoding()
+        else:
+            self._log_file_path = None
 
     def _get_traceback(self, text: str, print_full_exception=True) -> tuple:
         """
@@ -53,13 +70,9 @@ class GetTraceback:
         """
         Writes the traceback to the log file if `LOG_FILE` or `self.logger.log_file_path` is defined.
         """
-        log_file_path = self.logger.get_log_file_path()
-        if log_file_path and log_file_path.lower() != 'false':
-            if not os.path.exists(log_file_path):
-                mode = 'w'
-            else:
-                mode = 'a'
-            with open(log_file_path, mode) as log_file:
+
+        if self._log_file_path:
+            with open(self._log_file_path, self._log_mode, encoding=self._encoding) as log_file:
                 traceback.print_exc(file=log_file)
 
     @staticmethod
@@ -127,6 +140,13 @@ def _test(get_traceback: GetTraceback) -> None:
 
 
 if __name__ == '__main__':
-    os.environ['LOG_FILE'] = 'false'
-    get_traceback = GetTraceback(__file__)
+    os.environ['LOG_PATH'] = 'test.log'
+
+    logger = Logger(__file__)
+    get_traceback = GetTraceback(logger)
     _test(get_traceback)
+
+    try:
+        1 / 0
+    except ZeroDivisionError as e:
+        get_traceback.error(str(e))

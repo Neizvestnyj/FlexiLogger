@@ -4,8 +4,6 @@ import os
 import sys
 from typing import Union
 
-from . import LOG_FILE
-
 os.environ['LOGGER_TIME_INFO'] = 'true'
 
 _LOG_LEVELS = ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET')
@@ -40,7 +38,7 @@ class Logger(logging.Logger):
 
     def __init__(self,
                  name: str,
-                 log_file_path: Union[str, None] = LOG_FILE,
+                 log_file_path: Union[str, None] = None,
                  console_log_level: int = logging.DEBUG,
                  file_log_level: int = logging.DEBUG,
                  log_file_open_format="a",
@@ -62,13 +60,16 @@ class Logger(logging.Logger):
         If the `log_file_path` parameter is provided, the logs will be visible in the log file.
         If `is_format = True` as default, log will be formatted and colorized.
         """
+        if not log_file_path:
+            log_file_path = os.getenv('LOG_PATH')
+
         if log_file_path and log_file_path.lower() == 'false':
             log_file_path = None
 
         self._log_file_path = log_file_path
         super().__init__(name)
 
-        self.encoding = encoding
+        self._encoding = encoding
 
         # Enable time formatting if required
         if time_info and os.getenv('LOGGER_TIME_INFO', 'true') in ['true', '1']:
@@ -96,11 +97,11 @@ class Logger(logging.Logger):
         """
 
         if not os.path.exists(self._log_file_path):
-            with open(self._log_file_path, 'w', encoding=self.encoding):
+            with open(self._log_file_path, 'w', encoding=self._encoding):
                 self.info(f'Log file: {self._log_file_path} - created')
 
         fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, self.DATE_FORMAT)
-        file_handler = FormatLogLevelSpaces(self._log_file_path, mode=log_file_open_format, encoding=self.encoding)
+        file_handler = FormatLogLevelSpaces(self._log_file_path, mode=log_file_open_format, encoding=self._encoding)
         file_handler.setLevel(file_log_level)
         file_handler.setFormatter(fh_formatter)
         self.addHandler(file_handler)
@@ -120,6 +121,9 @@ class Logger(logging.Logger):
 
     def get_log_file_path(self) -> Union[str, None]:
         return self._log_file_path
+
+    def get_encoding(self) -> str:
+        return self._encoding
 
 
 class FormatLogLevelSpaces(logging.FileHandler):
