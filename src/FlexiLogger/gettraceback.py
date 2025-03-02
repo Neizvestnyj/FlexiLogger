@@ -11,16 +11,23 @@ except ImportError:
 
 
 class GetTraceback:
-    def __init__(self, logger: Logger):
+    def __init__(self, logger: Logger, log_file_path: str = None):
         """
         :param logger: FlexiLogger Logger class
+        :param log_file_path:  The path to the log file where traceback logs will be written.
         """
         if not isinstance(logger, Logger):
             raise TypeError('logger param must be a Logger')
 
         self.logger = logger
 
-        self._log_file_path = self.logger.get_log_file_path()
+        if log_file_path:
+            self._log_file_path = log_file_path
+        elif os.getenv('LOG_TRACEBACK_PATH') is not None:
+            self._log_file_path = os.getenv('LOG_TRACEBACK_PATH')
+        else:
+            self._log_file_path = self.logger.get_log_file_path()
+
         if self._log_file_path and self._log_file_path.lower() != 'false':
             if not os.path.exists(self._log_file_path):
                 self._log_mode = 'w'
@@ -141,6 +148,7 @@ def _test(get_traceback: GetTraceback) -> None:
 
 if __name__ == '__main__':
     os.environ['LOG_PATH'] = 'test.log'
+    os.environ['LOG_TRACEBACK_PATH'] = 'traceback.log'
 
     logger = Logger(__file__)
     get_traceback = GetTraceback(logger)

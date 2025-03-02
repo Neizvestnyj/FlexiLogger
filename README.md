@@ -1,6 +1,7 @@
 # FlexiLogger
 
-FlexiLogger is a customizable Python logging library that provides enhanced features for handling logs, including colorized console outputs, log file formatting, and detailed traceback management.
+FlexiLogger is a customizable Python logging library that provides enhanced features for handling logs, including
+colorized console outputs, log file formatting, and detailed traceback management.
 
 ## Features
 
@@ -42,7 +43,8 @@ FlexiLogger provides a `GetTraceback` class for managing exceptions:
 
 ```python
 import os
-os.environ['LOG_PATH'] = 'app.log' # noqa
+
+os.environ['LOG_PATH'] = 'app.log'  # noqa
 from FlexiLogger import Logger, GetTraceback
 
 logger = Logger(__file__, log_file_open_format='w')
@@ -60,12 +62,13 @@ except Exception as e:
 
 FlexiLogger uses several environment variables to customize its behavior:
 
-| Variable Name              | Description                                                                                       | Default Value |
-|----------------------------|---------------------------------------------------------------------------------------------------|---------------|
-| `LOG_PATH`                 | Specifies the path to the log file. If not set, logging to a file is disabled.                   | None          |
-| `LOGGER_CONSOLE_LOG_LEVEL` | Sets the console log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. | `DEBUG`       |
-| `LOGGER_FILE_LOG_LEVEL`    | Sets the file log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.    | `DEBUG`       |
-| `LOGGER_TIME_INFO`         | Enables or disables timestamps in log messages. Values: `true`/`1` or `false`/`0`.             | `true`        |
+| Variable Name              | Description                                                                                                  | Default Value |
+|----------------------------|--------------------------------------------------------------------------------------------------------------|---------------|
+| `LOG_PATH`                 | Specifies the path to the log file. If not set, logging to a file is disabled.                               | `None`        |
+| `LOG_TRACEBACK_PATH`       | Specifies the path where traceback will be saved. If not set, the file defined in the `Logger` will be used. | `None`        |
+| `LOGGER_CONSOLE_LOG_LEVEL` | Sets the console log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.              | `DEBUG`       |
+| `LOGGER_FILE_LOG_LEVEL`    | Sets the file log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.                 | `DEBUG`       |
+| `LOGGER_TIME_INFO`         | Enables or disables timestamps in log messages. Values: `true`/`1` or `false`/`0`.                           | `true`        |
 
 ### Example
 
