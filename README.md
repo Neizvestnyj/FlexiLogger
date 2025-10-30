@@ -110,4 +110,5 @@ FlexiLogger is licensed under the MIT License. See the [LICENSE](LICENSE) file f
 
 ## Contributions
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) to learn how to set up your environment and submit your changes.
+Contributions are welcome! Please read our
+[**Contributing Guide**](https://github.com/Neizvestnyj/FlexiLogger/blob/master/CONTRIBUTING.md) to learn how to set up your environment and submit your changes.
