@@ -87,10 +87,17 @@ export LOGGER_TIME_INFO="false"
 
 ```
 FlexiLogger/
-├── __init__.py
-├── logger.py
-├── gettraceback.py
-├── README.md
+├── src/
+│   └── FlexiLogger/
+│       ├── __init__.py
+│       ├── gettraceback.py
+│       ├── logger.py
+│       └── py.typed
+├── .pre-commit-config.yaml
+├── CONTRIBUTING.md
+├── LICENSE
+├── pyproject.toml
+└── README.md
 ```
 
 ---
@@ -103,4 +110,4 @@ FlexiLogger is licensed under the MIT License. See the [LICENSE](LICENSE) file f
 
 ## Contributions
 
-Contributions are welcome! Feel free to open an issue or submit a pull request.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) to learn how to set up your environment and submit your changes.
