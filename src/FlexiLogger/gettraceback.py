@@ -2,37 +2,37 @@ import os
 import sys
 import traceback
 from traceback import FrameSummary
-from typing import Union
+from typing import Optional, Union
 
 try:
     from .logger import Logger
 except ImportError:
-    from logger import Logger
+    from logger import Logger  # type: ignore
 
 
 class GetTraceback:
-    def __init__(self, logger: Logger, log_file_path: str = None):
+    def __init__(self, logger: Logger, log_file_path: Optional[str] = None):
         """
         :param logger: FlexiLogger Logger class
         :param log_file_path:  The path to the log file where traceback logs will be written.
         """
         if not isinstance(logger, Logger):
-            raise TypeError('logger param must be a Logger')
+            raise TypeError("logger param must be a Logger")
 
         self.logger = logger
 
         if log_file_path:
             self._log_file_path = log_file_path
-        elif os.getenv('LOG_TRACEBACK_PATH') is not None:
-            self._log_file_path = os.getenv('LOG_TRACEBACK_PATH')
+        elif os.getenv("LOG_TRACEBACK_PATH") is not None:
+            self._log_file_path = os.getenv("LOG_TRACEBACK_PATH")
         else:
             self._log_file_path = self.logger.get_log_file_path()
 
-        if self._log_file_path and self._log_file_path.lower() != 'false':
+        if self._log_file_path and self._log_file_path.lower() != "false":
             if not os.path.exists(self._log_file_path):
-                self._log_mode = 'w'
+                self._log_mode = "w"
             else:
-                self._log_mode = 'a'
+                self._log_mode = "a"
 
             self._encoding = self.logger.get_encoding()
         else:
@@ -94,6 +94,7 @@ class GetTraceback:
         """
 
         if get_line_error:
+            assert tb is not None, "Traceback (tb) should not be None if get_line_error is True"
             log_text = f"{text} in line - {tb[1]}"
         else:
             log_text = f"{text}"
@@ -141,20 +142,6 @@ def _test(get_traceback: GetTraceback) -> None:
     :param get_traceback: An instance of GetTraceback to test
     """
 
-    get_traceback.warning('Warning')
-    get_traceback.error('Error')
-    get_traceback.critical('Critical')
-
-
-if __name__ == '__main__':
-    os.environ['LOG_PATH'] = 'test.log'
-    os.environ['LOG_TRACEBACK_PATH'] = 'traceback.log'
-
-    logger = Logger(__file__)
-    get_traceback = GetTraceback(logger)
-    _test(get_traceback)
-
-    try:
-        1 / 0
-    except ZeroDivisionError as e:
-        get_traceback.error(str(e))
+    get_traceback.warning("Warning")
+    get_traceback.error("Error")
+    get_traceback.critical("Critical")

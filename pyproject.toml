@@ -1,3 +1,62 @@
 [build-system]
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "FlexiLogger"
+version = "1.0.4"
+description = "A customizable logger and traceback handler for Python applications"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT License" }
+authors = [
+    { name = "Neizvestnyj", email = "pikromat1995@gmail.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/Neizvestnyj/FlexiLogger"
+
+[project.optional-dependencies]
+dev = [
+    "pyright",
+    "ruff",
+    "pre-commit"
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["FlexiLogger"]
+
+[tool.setuptools.package-data]
+"FlexiLogger" = ["py.typed"]
+
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__"]
+pythonVersion = "3.7"
+reportMissingImports = true
+reportMissingTypeStubs = true
+reportUnknownMemberType = "warning"
+reportUnknownVariableType = "warning"
+
+[tool.ruff]
+target-version = "py37"
+src = ["src"]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "SIM"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["FlexiLogger"]

@@ -4,9 +4,9 @@ import os
 import sys
 from typing import Union
 
-os.environ['LOGGER_TIME_INFO'] = 'true'
+os.environ["LOGGER_TIME_INFO"] = "true"
 
-_LOG_LEVELS = ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET')
+_LOG_LEVELS = ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET")
 
 
 def get_log_level(env_var: str, default: int) -> int:
@@ -18,7 +18,7 @@ def get_log_level(env_var: str, default: int) -> int:
     :return: logging level as integer
     """
 
-    level_name = os.getenv(env_var, '').upper()
+    level_name = os.getenv(env_var, "").upper()
 
     return getattr(logging, level_name, default)
 
@@ -28,24 +28,23 @@ class Logger(logging.Logger):
     Customized Logger class for logging to console and optionally to file.
     """
 
-    FORMAT = (
-        "\x1b[34m[\x1b[0m%(levelname)s\x1b[34m]:\x1b[0m %(message)s\x1b[34m in file \x1b[0m%(name)s\x1b[34m: %(lineno)d\x1b[0m"
-    )
+    FORMAT = "\x1b[34m[\x1b[0m%(levelname)s\x1b[34m]:\x1b[0m %(message)s\x1b[34m in file \x1b[0m%(name)s\x1b[34m: %(lineno)d\x1b[0m"
 
     LOG_FILE_FORMAT = "[%(levelname)s]: %(message)s in %(filename)s:%(lineno)d"
 
     DATE_FORMAT = "%d-%m-%Y %H:%M:%S"
 
-    def __init__(self,
-                 name: str,
-                 log_file_path: Union[str, None] = None,
-                 console_log_level: int = logging.DEBUG,
-                 file_log_level: int = logging.DEBUG,
-                 log_file_open_format="a",
-                 is_format: bool = True,
-                 time_info: bool = True,
-                 encoding: str = 'utf-8',
-                 ):
+    def __init__(
+        self,
+        name: str,
+        log_file_path: Union[str, None] = None,
+        console_log_level: int = logging.DEBUG,
+        file_log_level: int = logging.DEBUG,
+        log_file_open_format: str = "a",
+        is_format: bool = True,
+        time_info: bool = True,
+        encoding: str = "utf-8",
+    ):
         """
         :param name: The name of the logger. Typically, this is the module name or a descriptive name for the logger.
         :param log_file_path: The path to the log file where logs will be written. If None, no file logging will be performed.
@@ -61,9 +60,9 @@ class Logger(logging.Logger):
         If `is_format = True` as default, log will be formatted and colorized.
         """
         if not log_file_path:
-            log_file_path = os.getenv('LOG_PATH')
+            log_file_path = os.getenv("LOG_PATH")
 
-        if log_file_path and log_file_path.lower() == 'false':
+        if log_file_path and log_file_path.lower() == "false":
             log_file_path = None
 
         self._log_file_path = log_file_path
@@ -72,36 +71,42 @@ class Logger(logging.Logger):
         self._encoding = encoding
 
         # Enable time formatting if required
-        if time_info and os.getenv('LOGGER_TIME_INFO', 'true') in ['true', '1']:
-            self.FORMAT = '%(asctime)s.%(msecs)03d: ' + self.FORMAT
-            self.LOG_FILE_FORMAT = '%(asctime)s.%(msecs)03d: ' + self.LOG_FILE_FORMAT
+        if time_info and os.getenv("LOGGER_TIME_INFO", "true") in ["true", "1"]:
+            self.FORMAT = "%(asctime)s.%(msecs)03d: " + self.FORMAT
+            self.LOG_FILE_FORMAT = "%(asctime)s.%(msecs)03d: " + self.LOG_FILE_FORMAT
 
         # Read log levels from environment variables
-        console_log_level = get_log_level('LOGGER_CONSOLE_LOG_LEVEL', console_log_level)
-        file_log_level = get_log_level('LOGGER_FILE_LOG_LEVEL', file_log_level)
+        console_log_level = get_log_level("LOGGER_CONSOLE_LOG_LEVEL", console_log_level)
+        file_log_level = get_log_level("LOGGER_FILE_LOG_LEVEL", file_log_level)
 
         # Add file handler
         if self._log_file_path:
-            self._setup_file_handler(log_file_open_format, file_log_level)
+            self._setup_file_handler(self._log_file_path, log_file_open_format, file_log_level)
 
         # Add console handler
         if is_format:
             self._setup_console_handler(console_log_level)
 
-    def _setup_file_handler(self, log_file_open_format: str, file_log_level: int) -> None:
+    def _setup_file_handler(
+        self,
+        log_path: str,
+        log_file_open_format: str,
+        file_log_level: int,
+    ) -> None:
         """
         Set up the file handler for logging.
 
+        :param log_path: path to the log file (guaranteed to be a string)
         :param log_file_open_format: mode for opening the log file (e.g., 'a', 'w')
         :param file_log_level: logging level for the file handler
         """
 
-        if not os.path.exists(self._log_file_path):
-            with open(self._log_file_path, 'w', encoding=self._encoding):
-                self.info(f'Log file: {self._log_file_path} - created')
+        if not os.path.exists(log_path):
+            with open(log_path, "w", encoding=self._encoding):
+                self.info(f"Log file: {log_path} - created")
 
         fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, self.DATE_FORMAT)
-        file_handler = FormatLogLevelSpaces(self._log_file_path, mode=log_file_open_format, encoding=self._encoding)
+        file_handler = FormatLogLevelSpaces(log_path, mode=log_file_open_format, encoding=self._encoding)
         file_handler.setLevel(file_log_level)
         file_handler.setFormatter(fh_formatter)
         self.addHandler(file_handler)
@@ -159,14 +164,14 @@ class ColoredConsoleHandler(logging.StreamHandler):
 
         record = copy.copy(record)
         level_colors = {
-            logging.CRITICAL: '\x1b[41m',  # Red background
-            logging.ERROR: '\x1b[31m',  # Red
-            logging.WARNING: '\x1b[33m',  # Yellow
-            logging.INFO: '\x1b[32m',  # Green
-            logging.DEBUG: '\x1b[37m',  # White/Gray
+            logging.CRITICAL: "\x1b[41m",  # Red background
+            logging.ERROR: "\x1b[31m",  # Red
+            logging.WARNING: "\x1b[33m",  # Yellow
+            logging.INFO: "\x1b[32m",  # Green
+            logging.DEBUG: "\x1b[37m",  # White/Gray
         }
-        color = level_colors.get(record.levelno, '\x1b[0m')  # Default
-        reset_color = '\x1b[0m'
+        color = level_colors.get(record.levelno, "\x1b[0m")  # Default
+        reset_color = "\x1b[0m"
 
         max_length = len(max(_LOG_LEVELS, key=len))
         record.levelname = f"{color}{record.levelname.ljust(max_length)}{reset_color}"
@@ -176,11 +181,11 @@ class ColoredConsoleHandler(logging.StreamHandler):
         super().emit(record)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Example usage
-    logger = Logger(__file__, log_file_path='test.log')
-    logger.debug('Debug message')
-    logger.info('Info message')
-    logger.warning('Warning message')
-    logger.error('Error message')
-    logger.critical('Critical message')
+    logger = Logger(__file__, log_file_path="test.log")
+    logger.debug("Debug message")
+    logger.info("Info message")
+    logger.warning("Warning message")
+    logger.error("Error message")
+    logger.critical("Critical message")
