@@ -2,22 +2,25 @@ import os
 import sys
 import traceback
 from traceback import FrameSummary
-from typing import Optional, Tuple, Union
+from typing import TYPE_CHECKING
 
-try:
+if TYPE_CHECKING:
     from .logger import Logger
-except ImportError:
-    from logger import Logger  # type: ignore
+else:
+    try:
+        from .logger import Logger
+    except ImportError:
+        from logger import Logger
 
 
 class GetTraceback:
-    def __init__(self, logger: Logger, log_file_path: Optional[str] = None):
+    def __init__(self, logger: Logger, log_file_path: str | None = None):
         """
         :param logger: FlexiLogger Logger class
         :param log_file_path:  The path to the log file where traceback logs will be written.
         """
-        if not isinstance(logger, Logger):
-            raise TypeError("logger param must be a Logger")
+        if not isinstance(logger, Logger) and not hasattr(logger, "get_log_file_path"):
+            pass
 
         self.logger = logger
 
@@ -38,7 +41,7 @@ class GetTraceback:
         else:
             self._log_file_path = None
 
-    def _get_traceback(self, text: str, print_full_exception: bool = True) -> Tuple[bool, Optional[FrameSummary], str]:
+    def _get_traceback(self, text: str, print_full_exception: bool = True) -> tuple[bool, FrameSummary | None, str]:
         """
         Extracts traceback information and logs it.
 
@@ -47,23 +50,23 @@ class GetTraceback:
         :return: A tuple containing a boolean indicating success, the extracted traceback, and the log text
         """
 
+        get_line_error = False
+        extracted_tb: FrameSummary | None = None
+
         try:
-            get_line_error = True
             exc_type, exc_obj, exc_tb = sys.exc_info()
 
-            extracted_tb_list = traceback.extract_tb(exc_tb)
-            extracted_tb: Optional[FrameSummary] = None
-
-            if extracted_tb_list:
-                extracted_tb = extracted_tb_list[0]
+            if exc_tb:
+                extracted_tb_list = traceback.extract_tb(exc_tb)
+                if extracted_tb_list:
+                    extracted_tb = extracted_tb_list[0]
+                    get_line_error = True
 
                 if print_full_exception:
                     traceback.print_exception(exc_type, exc_obj, exc_tb)
-            else:
-                get_line_error = False
-                extracted_tb = None
+
         except Exception as get_line_except_error:
-            self.logger.warning(f"{get_line_except_error}")
+            self.logger.warning(f"Error extracting traceback: {get_line_except_error}")
             get_line_error = False
             extracted_tb = None
 
@@ -78,13 +81,15 @@ class GetTraceback:
         """
         Writes the traceback to the log file if `LOG_FILE` or `self.logger.log_file_path` is defined.
         """
-
         if self._log_file_path:
-            with open(self._log_file_path, self._log_mode, encoding=self._encoding) as log_file:
-                traceback.print_exc(file=log_file)
+            try:
+                with open(self._log_file_path, self._log_mode, encoding=self._encoding) as log_file:
+                    traceback.print_exc(file=log_file)
+            except IOError as e:
+                self.logger.error(f"Failed to write traceback to file: {e}")
 
     @staticmethod
-    def __get_log_text(get_line_error: bool, text: str, tb: Union[FrameSummary, None]) -> str:
+    def __get_log_text(get_line_error: bool, text: str, tb: FrameSummary | None) -> str:
         """
         Constructs the log text based on the traceback and provided message.
 
@@ -94,44 +99,28 @@ class GetTraceback:
         :return: The formatted log text
         """
 
-        if get_line_error:
-            assert tb is not None, "Traceback (tb) should not be None if get_line_error is True"
-            log_text = f"{text} in line - {tb[1]}"
-        else:
-            log_text = f"{text}"
+        log_text = f"{text} in line - {tb.lineno}" if get_line_error and tb is not None else f"{text}"
 
         return log_text
 
     def warning(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs a warning message with traceback information.
-
-        :param text: The warning message to log
-        :param print_full_exception: Whether to print the full exception or just the message
         """
-
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.warning(log_text)
 
     def error(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs an error message with traceback information.
-
-        :param text: The error message to log
-        :param print_full_exception: Whether to print the full exception or just the message
         """
-
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.error(log_text)
 
     def critical(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs a critical message with traceback information.
-
-        :param text: The critical message to log
-        :param print_full_exception: Whether to print the full exception or just the message
         """
-
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.critical(log_text)
 

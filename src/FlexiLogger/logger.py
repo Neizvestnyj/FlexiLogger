@@ -5,9 +5,7 @@ import os
 import re
 import sys
 import time
-from typing import Optional, Union
-
-os.environ["LOGGER_TIME_INFO"] = "true"
+from logging.handlers import RotatingFileHandler
 
 _LOG_LEVELS = ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET")
 
@@ -26,7 +24,7 @@ def get_log_level(env_var: str, default: int) -> int:
     return getattr(logging, level_name, default)
 
 
-def _parse_timezone(tz_str: Optional[str]) -> Optional[datetime.timezone]:
+def _parse_timezone(tz_str: str | None) -> datetime.timezone | None:
     """
     Parse timezone string into datetime.timezone object.
 
@@ -57,7 +55,7 @@ def _parse_timezone(tz_str: Optional[str]) -> Optional[datetime.timezone]:
     return datetime.timezone.utc  # Fallback to UTC
 
 
-def _get_time_converter(tz: Optional[datetime.timezone]):
+def _get_time_converter(tz: datetime.timezone | None):
     """
     Create a time converter function for the specified timezone.
 
@@ -67,7 +65,7 @@ def _get_time_converter(tz: Optional[datetime.timezone]):
     if tz is None:
         return time.localtime
 
-    def converter(timestamp: Optional[float] = None) -> time.struct_time:
+    def converter(timestamp: float | None = None) -> time.struct_time:
         if timestamp is None:
             timestamp = time.time()
         dt = datetime.datetime.fromtimestamp(timestamp, tz)
@@ -76,141 +74,9 @@ def _get_time_converter(tz: Optional[datetime.timezone]):
     return converter
 
 
-class Logger(logging.Logger):
+class FormatLogLevelSpaces(RotatingFileHandler):
     """
-    Customized Logger class for logging to console and optionally to file.
-    """
-
-    FORMAT = "\x1b[34m[\x1b[0m%(levelname)s\x1b[34m]:\x1b[0m %(message)s\x1b[34m in file \x1b[0m%(name)s\x1b[34m: %(lineno)d\x1b[0m"
-
-    LOG_FILE_FORMAT = "[%(levelname)s]: %(message)s in %(filename)s:%(lineno)d"
-
-    DATE_FORMAT = "%d-%m-%Y %H:%M:%S"
-
-    def __init__(
-        self,
-        name: str,
-        log_file_path: Union[str, None] = None,
-        console_log_level: int = logging.DEBUG,
-        file_log_level: int = logging.DEBUG,
-        log_file_open_format: str = "a",
-        is_format: bool = True,
-        time_info: bool = True,
-        encoding: str = "utf-8",
-        timezone: Union[str, None] = None,
-        date_format: Union[str, None] = None,
-    ):
-        """
-        :param name: The name of the logger. Typically, this is the module name or a descriptive name for the logger.
-        :param log_file_path: The path to the log file where logs will be written. If None, no file logging will be performed.
-        :param console_log_level: The logging level for the console handler. This determines the severity of messages that will be output to the console. Default is logging.DEBUG, which logs all messages.
-        :param file_log_level: The logging level for the file handler. This determines the severity of messages that will be written to the log file. Default is logging.DEBUG.
-        :param log_file_open_format: The mode in which to open the log file, such as 'a' for append or 'w' for write. Default is 'a' to append to the existing log file.
-        :param is_format: Whether to apply formatting to the log messages. If True, log messages will include additional information like log levels and timestamps. Default is True.
-        :param time_info: Whether to include timestamps in the log messages. If True, each log message will have a timestamp. Default is True.
-        :param encoding: The encoding to use when writing to the log file. Default is 'utf-8'.
-        :param timezone: Timezone for timestamps. Can be "UTC", "LOCAL", "UTC+3", etc. Defaults to LOGGER_TIMEZONE env var or UTC.
-        :param date_format: The format string for timestamps. If None, uses default format.
-
-        Log levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
-        If the `log_file_path` parameter is provided, the logs will be visible in the log file.
-        If `is_format = True` as default, log will be formatted and colorized.
-        """
-        if not log_file_path:
-            log_file_path = os.getenv("LOG_PATH")
-
-        if log_file_path and log_file_path.lower() == "false":
-            log_file_path = None
-
-        self._log_file_path = log_file_path
-        super().__init__(name)
-
-        self._encoding = encoding
-
-        # Determine timezone
-        if timezone is None:
-            timezone = os.getenv("LOGGER_TIMEZONE")
-
-        self._tz_object = _parse_timezone(timezone)
-        self._time_converter = _get_time_converter(self._tz_object)
-
-        # Enable time formatting if required
-        if time_info and os.getenv("LOGGER_TIME_INFO", "true") in ["true", "1"]:
-            self.FORMAT = "%(asctime)s.%(msecs)03d: " + self.FORMAT
-            self.LOG_FILE_FORMAT = "%(asctime)s.%(msecs)03d: " + self.LOG_FILE_FORMAT
-
-        # Read log levels from environment variables
-        console_log_level = get_log_level("LOGGER_CONSOLE_LOG_LEVEL", console_log_level)
-        file_log_level = get_log_level("LOGGER_FILE_LOG_LEVEL", file_log_level)
-
-        # Add file handler
-        if self._log_file_path:
-            self._setup_file_handler(self._log_file_path, log_file_open_format, file_log_level, date_format)
-
-        # Add console handler
-        if is_format:
-            self._setup_console_handler(console_log_level, date_format)
-
-    def _setup_file_handler(
-        self,
-        log_path: str,
-        log_file_open_format: str,
-        file_log_level: int,
-        date_format: Union[str, None],
-    ) -> None:
-        """
-        Set up the file handler for logging.
-
-        :param log_path: path to the log file (guaranteed to be a string)
-        :param log_file_open_format: mode for opening the log file (e.g., 'a', 'w')
-        :param file_log_level: logging level for the file handler
-        :param date_format: custom date format string
-        """
-
-        if not os.path.exists(log_path):
-            with open(log_path, "w", encoding=self._encoding):
-                self.info(f"Log file: {log_path} - created")
-
-        use_date_format = date_format if date_format else self.DATE_FORMAT
-        fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, use_date_format)
-        fh_formatter.converter = self._time_converter
-
-        file_handler = FormatLogLevelSpaces(log_path, mode=log_file_open_format, encoding=self._encoding)
-        file_handler.setLevel(file_log_level)
-        file_handler.setFormatter(fh_formatter)
-        self.addHandler(file_handler)
-
-    def _setup_console_handler(
-        self,
-        console_log_level: int,
-        date_format: Union[str, None],
-    ) -> None:
-        """
-        Set up the console handler for logging.
-
-        :param console_log_level: logging level for the console handler
-        :param date_format: custom date format string
-        """
-
-        use_date_format = date_format if date_format else self.DATE_FORMAT
-        console_color_formatter = logging.Formatter(self.FORMAT, use_date_format)
-        console_color_formatter.converter = self._time_converter
-
-        console = ColoredConsoleHandler(stream=sys.stdout)
-        console.setLevel(console_log_level)
-        console.setFormatter(console_color_formatter)
-        self.addHandler(console)
-
-    def get_log_file_path(self) -> Union[str, None]:
-        return self._log_file_path
-
-    def get_encoding(self) -> str:
-        return self._encoding
-
-
-class FormatLogLevelSpaces(logging.FileHandler):
-    """
-    Adjust log level alignment for file logs.
+    Adjust log level alignment for file logs with rotation support.
     """
 
     def emit(self, record: logging.LogRecord):
@@ -256,6 +122,164 @@ class ColoredConsoleHandler(logging.StreamHandler):
         record.name = f"\x1b[35m{record.name}{reset_color}"
 
         super().emit(record)
+
+
+class Logger(logging.Logger):
+    """
+    Customized Logger class for logging to console and optionally to file.
+    """
+
+    FORMAT = "\x1b[34m[\x1b[0m%(levelname)s\x1b[34m]:\x1b[0m %(message)s\x1b[34m in file \x1b[0m%(name)s\x1b[34m: %(lineno)d\x1b[0m"
+
+    LOG_FILE_FORMAT = "[%(levelname)s]: %(message)s in %(filename)s:%(lineno)d"
+
+    DATE_FORMAT = "%d-%m-%Y %H:%M:%S"
+
+    def __init__(
+        self,
+        name: str,
+        log_file_path: str | None = None,
+        console_log_level: int = logging.DEBUG,
+        file_log_level: int = logging.DEBUG,
+        log_file_open_format: str = "a",
+        is_format: bool = True,
+        time_info: bool = True,
+        encoding: str = "utf-8",
+        timezone: str | None = None,
+        date_format: str | None = None,
+        max_bytes: int = 10 * 1024 * 1024,  # 10 MB default
+        backup_count: int = 5,
+    ):
+        """
+        :param name: The name of the logger. Typically, this is the module name or a descriptive name for the logger.
+        :param log_file_path: The path to the log file where logs will be written. If None, no file logging will be performed.
+        :param console_log_level: The logging level for the console handler. This determines the severity of messages that will be output to the console. Default is logging.DEBUG, which logs all messages.
+        :param file_log_level: The logging level for the file handler. This determines the severity of messages that will be written to the log file. Default is logging.DEBUG.
+        :param log_file_open_format: The mode in which to open the log file, such as 'a' for append or 'w' for write. Default is 'a' to append to the existing log file.
+        :param is_format: Whether to apply formatting to the log messages. If True, log messages will include additional information like log levels and timestamps. Default is True.
+        :param time_info: Whether to include timestamps in the log messages. If True, each log message will have a timestamp. Default is True.
+        :param encoding: The encoding to use when writing to the log file. Default is 'utf-8'.
+        :param timezone: Timezone for timestamps. Can be "UTC", "LOCAL", "UTC+3", etc. Defaults to LOGGER_TIMEZONE env var or UTC.
+        :param date_format: The format string for timestamps. If None, uses default format.
+        :param max_bytes: Maximum size of log file in bytes before rotation. Default 10MB.
+        :param backup_count: Number of backup log files to keep. Default 5.
+
+        Log levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
+        If the `log_file_path` parameter is provided, the logs will be visible in the log file.
+        If `is_format = True` as default, log will be formatted and colorized.
+        """
+        if not log_file_path:
+            log_file_path = os.getenv("LOG_PATH")
+
+        if log_file_path and log_file_path.lower() == "false":
+            log_file_path = None
+
+        self._log_file_path = log_file_path
+        super().__init__(name)
+
+        self._encoding = encoding
+
+        # Determine timezone
+        if timezone is None:
+            timezone = os.getenv("LOGGER_TIMEZONE")
+
+        self._tz_object = _parse_timezone(timezone)
+        self._time_converter = _get_time_converter(self._tz_object)
+
+        # Enable time formatting if required
+        env_time_info = os.getenv("LOGGER_TIME_INFO", "true")
+        if time_info and env_time_info in ["true", "1"]:
+            self.FORMAT = "%(asctime)s.%(msecs)03d: " + self.FORMAT
+            self.LOG_FILE_FORMAT = "%(asctime)s.%(msecs)03d: " + self.LOG_FILE_FORMAT
+
+        # Read log levels from environment variables
+        console_log_level = get_log_level("LOGGER_CONSOLE_LOG_LEVEL", console_log_level)
+        file_log_level = get_log_level("LOGGER_FILE_LOG_LEVEL", file_log_level)
+
+        # Add file handler
+        if self._log_file_path:
+            self._setup_file_handler(
+                self._log_file_path,
+                log_file_open_format,
+                file_log_level,
+                date_format,
+                max_bytes,
+                backup_count,
+            )
+
+        # Add console handler
+        if is_format:
+            self._setup_console_handler(console_log_level, date_format)
+
+    def _setup_file_handler(
+        self,
+        log_path: str,
+        log_file_open_format: str,
+        file_log_level: int,
+        date_format: str | None,
+        max_bytes: int,
+        backup_count: int,
+    ) -> None:
+        """
+        Set up the file handler for logging.
+
+        :param log_path: path to the log file (guaranteed to be a string)
+        :param log_file_open_format: mode for opening the log file (e.g., 'a', 'w')
+        :param file_log_level: logging level for the file handler
+        :param date_format: custom date format string
+        :param max_bytes: max size for rotation
+        :param backup_count: number of backups
+        """
+
+        if not os.path.exists(log_path):
+            try:
+                with open(log_path, "w", encoding=self._encoding):
+                    pass
+            except IOError:
+                pass
+
+        use_date_format = date_format if date_format else self.DATE_FORMAT
+        fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, use_date_format)
+        fh_formatter.converter = self._time_converter
+
+        # FormatLogLevelSpaces now inherits from RotatingFileHandler
+        file_handler = FormatLogLevelSpaces(
+            log_path,
+            mode=log_file_open_format,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding=self._encoding,
+        )
+        file_handler.setLevel(file_log_level)
+        file_handler.setFormatter(fh_formatter)
+        self.addHandler(file_handler)
+
+    def _setup_console_handler(
+        self,
+        console_log_level: int,
+        date_format: str | None,
+    ) -> None:
+        """
+        Set up the console handler for logging.
+
+        :param console_log_level: logging level for the console handler
+        :param date_format: custom date format string
+        """
+
+        use_date_format = date_format if date_format else self.DATE_FORMAT
+        console_color_formatter = logging.Formatter(self.FORMAT, use_date_format)
+        console_color_formatter.converter = self._time_converter
+
+        console = ColoredConsoleHandler(stream=sys.stdout)
+        console.setLevel(console_log_level)
+        console.setFormatter(console_color_formatter)
+        self.addHandler(console)
+
+    def get_log_file_path(self) -> str | None:
+        return self._log_file_path
+
+    def get_encoding(self) -> str:
+        return self._encoding
 
 
 if __name__ == "__main__":

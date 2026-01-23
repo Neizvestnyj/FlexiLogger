@@ -25,7 +25,8 @@ Homepage = "https://github.com/Neizvestnyj/FlexiLogger"
 dev = [
     "pyright>=1.1.408",
     "ruff>=0.14.13",
-    "pre-commit>=4.5.1"
+    "pre-commit>=4.5.1",
+    "pytest>=8.0.0"
 ]
 
 [tool.setuptools]
@@ -60,3 +61,11 @@ ignore = ["E501", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["FlexiLogger"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["src/tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+python_classes = "Test*"
+asyncio_mode = "auto"

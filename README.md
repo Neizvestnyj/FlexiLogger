@@ -7,6 +7,7 @@ colorized console outputs, log file formatting, and detailed traceback managemen
 
 - Colorized console logging for better readability.
 - File-based logging with customizable formats.
+- Automatic Log Rotation - prevents log files from growing indefinitely.
 - Dynamic configuration via environment variables.
 - Enhanced traceback extraction and logging.
 - Customizable log level spaces for better alignment.
@@ -39,6 +40,14 @@ logger.info("This is an info message")
 # Custom timezone and date format
 logger_tz = Logger("CustomLogger", timezone="UTC+1", date_format="%Y-%m-%d %H:%M:%S")
 logger_tz.info("This message uses UTC+1 and ISO format")
+
+# Log Rotation (Max 5MB per file, keep 3 backups)
+logger_rot = Logger(
+    "RotationLogger",
+    log_file_path="app.log",
+    max_bytes=5 * 1024 * 1024,
+    backup_count=3
+)
 ```
 
 ### Advanced Traceback Handling
