@@ -1,5 +1,6 @@
 import copy
 import datetime
+import json
 import logging
 import os
 import re
@@ -72,6 +73,27 @@ def _get_time_converter(tz: datetime.timezone | None):
         return dt.timetuple()
 
     return converter
+
+
+class JSONFormatter(logging.Formatter):
+    """
+    Formatter that outputs JSON strings for structured logging.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "logger": record.name,
+            "file": record.filename,
+            "line": record.lineno,
+        }
+
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+
+        return json.dumps(log_record)
 
 
 class FormatLogLevelSpaces(RotatingFileHandler):
@@ -149,24 +171,22 @@ class Logger(logging.Logger):
         date_format: str | None = None,
         max_bytes: int = 10 * 1024 * 1024,  # 10 MB default
         backup_count: int = 5,
+        json_format: bool | None = None,
     ):
         """
-        :param name: The name of the logger. Typically, this is the module name or a descriptive name for the logger.
-        :param log_file_path: The path to the log file where logs will be written. If None, no file logging will be performed.
-        :param console_log_level: The logging level for the console handler. This determines the severity of messages that will be output to the console. Default is logging.DEBUG, which logs all messages.
-        :param file_log_level: The logging level for the file handler. This determines the severity of messages that will be written to the log file. Default is logging.DEBUG.
-        :param log_file_open_format: The mode in which to open the log file, such as 'a' for append or 'w' for write. Default is 'a' to append to the existing log file.
-        :param is_format: Whether to apply formatting to the log messages. If True, log messages will include additional information like log levels and timestamps. Default is True.
-        :param time_info: Whether to include timestamps in the log messages. If True, each log message will have a timestamp. Default is True.
-        :param encoding: The encoding to use when writing to the log file. Default is 'utf-8'.
-        :param timezone: Timezone for timestamps. Can be "UTC", "LOCAL", "UTC+3", etc. Defaults to LOGGER_TIMEZONE env var or UTC.
-        :param date_format: The format string for timestamps. If None, uses default format.
-        :param max_bytes: Maximum size of log file in bytes before rotation. Default 10MB.
-        :param backup_count: Number of backup log files to keep. Default 5.
-
-        Log levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
-        If the `log_file_path` parameter is provided, the logs will be visible in the log file.
-        If `is_format = True` as default, log will be formatted and colorized.
+        :param name: The name of the logger.
+        :param log_file_path: The path to the log file.
+        :param console_log_level: The logging level for the console handler.
+        :param file_log_level: The logging level for the file handler.
+        :param log_file_open_format: The mode in which to open the log file.
+        :param is_format: Whether to apply formatting to the log messages.
+        :param time_info: Whether to include timestamps in the log messages.
+        :param encoding: The encoding to use when writing to the log file.
+        :param timezone: Timezone for timestamps.
+        :param date_format: The format string for timestamps.
+        :param max_bytes: Maximum size of log file in bytes before rotation.
+        :param backup_count: Number of backup log files to keep.
+        :param json_format: Whether to log in JSON format. Defaults to LOGGER_JSON_FORMAT env var.
         """
         if not log_file_path:
             log_file_path = os.getenv("LOG_PATH")
@@ -185,6 +205,11 @@ class Logger(logging.Logger):
 
         self._tz_object = _parse_timezone(timezone)
         self._time_converter = _get_time_converter(self._tz_object)
+
+        # Determine JSON format
+        if json_format is None:
+            json_format = os.getenv("LOGGER_JSON_FORMAT", "false").lower() in ("true", "1")
+        self._json_format = json_format
 
         # Enable time formatting if required
         env_time_info = os.getenv("LOGGER_TIME_INFO", "true")
@@ -222,13 +247,6 @@ class Logger(logging.Logger):
     ) -> None:
         """
         Set up the file handler for logging.
-
-        :param log_path: path to the log file (guaranteed to be a string)
-        :param log_file_open_format: mode for opening the log file (e.g., 'a', 'w')
-        :param file_log_level: logging level for the file handler
-        :param date_format: custom date format string
-        :param max_bytes: max size for rotation
-        :param backup_count: number of backups
         """
 
         if not os.path.exists(log_path):
@@ -239,17 +257,30 @@ class Logger(logging.Logger):
                 pass
 
         use_date_format = date_format if date_format else self.DATE_FORMAT
-        fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, use_date_format)
+
+        if self._json_format:
+            fh_formatter = JSONFormatter(datefmt=use_date_format)
+        else:
+            fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, use_date_format)
+
         fh_formatter.converter = self._time_converter
 
-        # FormatLogLevelSpaces now inherits from RotatingFileHandler
-        file_handler = FormatLogLevelSpaces(
-            log_path,
-            mode=log_file_open_format,
-            maxBytes=max_bytes,
-            backupCount=backup_count,
-            encoding=self._encoding,
-        )
+        if self._json_format:
+            file_handler = RotatingFileHandler(
+                log_path,
+                mode=log_file_open_format,
+                maxBytes=max_bytes,
+                backupCount=backup_count,
+                encoding=self._encoding,
+            )
+        else:
+            file_handler = FormatLogLevelSpaces(
+                log_path,
+                mode=log_file_open_format,
+                maxBytes=max_bytes,
+                backupCount=backup_count,
+                encoding=self._encoding,
+            )
         file_handler.setLevel(file_log_level)
         file_handler.setFormatter(fh_formatter)
         self.addHandler(file_handler)
@@ -261,18 +292,22 @@ class Logger(logging.Logger):
     ) -> None:
         """
         Set up the console handler for logging.
-
-        :param console_log_level: logging level for the console handler
-        :param date_format: custom date format string
         """
 
         use_date_format = date_format if date_format else self.DATE_FORMAT
-        console_color_formatter = logging.Formatter(self.FORMAT, use_date_format)
-        console_color_formatter.converter = self._time_converter
 
-        console = ColoredConsoleHandler(stream=sys.stdout)
+        if self._json_format:
+            console_formatter = JSONFormatter(datefmt=use_date_format)
+            # Use standard StreamHandler for JSON to avoid color codes in JSON keys/values
+            console = logging.StreamHandler(stream=sys.stdout)
+        else:
+            console_formatter = logging.Formatter(self.FORMAT, use_date_format)
+            console = ColoredConsoleHandler(stream=sys.stdout)
+
+        console_formatter.converter = self._time_converter
+
         console.setLevel(console_log_level)
-        console.setFormatter(console_color_formatter)
+        console.setFormatter(console_formatter)
         self.addHandler(console)
 
     def get_log_file_path(self) -> str | None:

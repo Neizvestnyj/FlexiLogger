@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import sys
 
@@ -23,6 +24,29 @@ def test_logger_init(tmp_path):
         content = f.read()
         assert "Test message" in content
         assert "INFO" in content
+
+
+def test_logger_json(tmp_path):
+    log_file = tmp_path / "test_json.log"
+    logger = Logger("JSONLogger", log_file_path=str(log_file), json_format=True)
+
+    logger.info("JSON Info Message")
+    logger.warning("JSON Warning Message")
+
+    with open(log_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+        assert len(lines) >= 2
+
+        # Parse first line
+        log1 = json.loads(lines[0])
+        assert log1["level"] == "INFO"
+        assert log1["message"] == "JSON Info Message"
+        assert log1["logger"] == "JSONLogger"
+        assert "timestamp" in log1
+
+        # Parse second line
+        log2 = json.loads(lines[1])
+        assert log2["level"] == "WARNING"
 
 
 def test_logger_rotation(tmp_path):
