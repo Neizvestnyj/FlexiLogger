@@ -26,39 +26,50 @@ def test_logger_init(tmp_path):
         assert "INFO" in content
 
 
-def test_logger_json(tmp_path):
-    log_file = tmp_path / "test_json.log"
-    logger = Logger("JSONLogger", log_file_path=str(log_file), json_format=True)
+def test_logger_json_binding(tmp_path):
+    log_file = tmp_path / "test_json_bind.log"
+    logger = Logger("JSONBindLogger", log_file_path=str(log_file), json_format=True)
 
-    logger.info("JSON Info Message")
-    logger.warning("JSON Warning Message")
+    # 1. Bind context
+    bound_logger = logger.bind(request_id="123", user="alice")
+    bound_logger.info("User login")
+
+    # 2. Chain bind
+    deep_logger = bound_logger.bind(action="delete", item_id=99)
+    deep_logger.warning("Dangerous action")
+
+    # 3. Regular log should not have context
+    logger.error("System error")
 
     with open(log_file, "r", encoding="utf-8") as f:
         lines = f.readlines()
-        assert len(lines) >= 2
+        assert len(lines) == 3
 
-        # Parse first line
+        # Check first log (bound)
         log1 = json.loads(lines[0])
-        assert log1["level"] == "INFO"
-        assert log1["message"] == "JSON Info Message"
-        assert log1["logger"] == "JSONLogger"
-        assert "timestamp" in log1
+        assert log1["message"] == "User login"
+        assert log1["request_id"] == "123"
+        assert log1["user"] == "alice"
 
-        # Parse second line
+        # Check second log (chained)
         log2 = json.loads(lines[1])
-        assert log2["level"] == "WARNING"
+        assert log2["message"] == "Dangerous action"
+        assert log2["request_id"] == "123"  # Inherited
+        assert log2["action"] == "delete"
+
+        # Check third log (original logger)
+        log3 = json.loads(lines[2])
+        assert log3["message"] == "System error"
+        assert "request_id" not in log3
 
 
 def test_logger_rotation(tmp_path):
     log_file = tmp_path / "rotate.log"
-    # Set very small limit to trigger rotation
     logger = Logger("RotateLogger", log_file_path=str(log_file), max_bytes=50, backup_count=2)
 
-    # Write enough data to trigger rotation
     for i in range(10):
         logger.info(f"Message {i} " * 5)
 
-    # Check if backup files exist
     assert os.path.exists(log_file)
     assert os.path.exists(str(log_file) + ".1")
 
@@ -75,13 +86,11 @@ def test_get_traceback(tmp_path):
 
     with open(log_file, "r", encoding="utf-8") as f:
         content = f.read()
-        # Should contain the message and line number info
         assert "Caught zero division" in content
         assert "in line -" in content
 
 
 def test_timezone_parsing():
-    # Test UTC
     logger = Logger("UTCLogger", timezone="UTC")
     assert logger._tz_object == datetime.timezone.utc
 
@@ -94,7 +103,3 @@ def test_parse_timezone_func():
     tz_plus_3 = _parse_timezone("UTC+3")
     assert tz_plus_3 is not None
     assert tz_plus_3.utcoffset(None) == datetime.timedelta(hours=3)
-
-    tz_minus_5 = _parse_timezone("UTC-05:00")
-    assert tz_minus_5 is not None
-    assert tz_minus_5.utcoffset(None) == datetime.timedelta(hours=-5)

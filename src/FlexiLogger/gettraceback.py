@@ -14,10 +14,18 @@ else:
 
 
 class GetTraceback:
+    """
+    A class to handle exception traceback extraction and logging.
+    Allows saving tracebacks to a separate file or the main log.
+    """
+
     def __init__(self, logger: Logger, log_file_path: str | None = None):
         """
-        :param logger: FlexiLogger Logger class
-        :param log_file_path:  The path to the log file where traceback logs will be written.
+        Initialize the GetTraceback handler.
+
+        :param logger: FlexiLogger Logger instance.
+        :param log_file_path: The path to the log file where traceback logs will be written.
+                              If None, uses LOG_TRACEBACK_PATH env var or falls back to logger's file.
         """
         if not isinstance(logger, Logger) and not hasattr(logger, "get_log_file_path"):
             pass
@@ -45,9 +53,9 @@ class GetTraceback:
         """
         Extracts traceback information and logs it.
 
-        :param text: Exception text (`except Exception as e`, e - our text)
-        :param print_full_exception: Whether to print the full exception or just the provided text
-        :return: A tuple containing a boolean indicating success, the extracted traceback, and the log text
+        :param text: Custom error message to prepend.
+        :param print_full_exception: Whether to print the full exception to stderr via traceback.print_exception.
+        :return: A tuple containing a boolean indicating success, the extracted traceback frame, and the log text.
         """
 
         get_line_error = False
@@ -79,7 +87,7 @@ class GetTraceback:
 
     def __write_traceback_to_file(self) -> None:
         """
-        Writes the traceback to the log file if `LOG_FILE` or `self.logger.log_file_path` is defined.
+        Writes the traceback to the separate log file if configured.
         """
         if self._log_file_path:
             try:
@@ -93,10 +101,10 @@ class GetTraceback:
         """
         Constructs the log text based on the traceback and provided message.
 
-        :param get_line_error: Indicates whether traceback extraction was successful
-        :param text: The message to log
-        :param tb: The extracted traceback frame summary, if available
-        :return: The formatted log text
+        :param get_line_error: Indicates whether traceback extraction was successful.
+        :param text: The message to log.
+        :param tb: The extracted traceback frame summary, if available.
+        :return: The formatted log text string.
         """
 
         log_text = f"{text} in line - {tb.lineno}" if get_line_error and tb is not None else f"{text}"
@@ -106,6 +114,9 @@ class GetTraceback:
     def warning(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs a warning message with traceback information.
+
+        :param text: The warning message to log.
+        :param print_full_exception: Whether to print the full exception details to standard error.
         """
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.warning(log_text)
@@ -113,6 +124,9 @@ class GetTraceback:
     def error(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs an error message with traceback information.
+
+        :param text: The error message to log.
+        :param print_full_exception: Whether to print the full exception details to standard error.
         """
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.error(log_text)
@@ -120,6 +134,9 @@ class GetTraceback:
     def critical(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs a critical message with traceback information.
+
+        :param text: The critical message to log.
+        :param print_full_exception: Whether to print the full exception details to standard error.
         """
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.critical(log_text)
@@ -129,7 +146,7 @@ def _test(get_traceback: GetTraceback) -> None:
     """
     Test function to log different levels of messages.
 
-    :param get_traceback: An instance of GetTraceback to test
+    :param get_traceback: An instance of GetTraceback to test.
     """
 
     get_traceback.warning("Warning")

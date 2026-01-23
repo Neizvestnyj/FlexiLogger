@@ -1,16 +1,16 @@
 # FlexiLogger
 
 FlexiLogger is a customizable Python logging library that provides enhanced features for handling logs, including
-colorized console outputs, log file formatting, and detailed traceback management.
+colorized console outputs, structured JSON logging, log rotation, and context binding.
 
 ## Features
 
-- Colorized console logging for better readability.
-- File-based logging with customizable formats.
-- Automatic Log Rotation - prevents log files from growing indefinitely.
-- Dynamic configuration via environment variables.
-- Enhanced traceback extraction and logging.
-- Customizable log level spaces for better alignment.
+- **Structured JSON Logging**: Production-ready format for ELK/Datadog/Splunk.
+- **Context Binding**: Add contextual data (user_id, request_id) to logs easily.
+- **Automatic Log Rotation**: Prevents log files from growing indefinitely.
+- **Colorized Console**: Better readability during development.
+- **Dynamic Configuration**: Configure via environment variables.
+- **Timezone Support**: UTC, Local, or custom offsets.
 
 ---
 
@@ -40,13 +40,36 @@ logger.info("This is an info message")
 # Custom timezone and date format
 logger_tz = Logger("CustomLogger", timezone="UTC+1", date_format="%Y-%m-%d %H:%M:%S")
 logger_tz.info("This message uses UTC+1 and ISO format")
+```
 
-# Log Rotation (Max 5MB per file, keep 3 backups)
-logger_rot = Logger(
+### JSON Logging and Context Binding (Production Mode)
+
+Enable JSON logging for machine-readable output and bind context to track requests:
+
+```python
+# Enable JSON format (or set env LOGGER_JSON_FORMAT=true)
+logger = Logger("AppLogger", log_file_path="app.json", json_format=True)
+
+# Bind context (e.g., at the start of a request)
+log = logger.bind(request_id="req-123", user_id=42)
+
+log.info("Processing payment")
+# Output: {"timestamp": "...", "level": "INFO", "message": "Processing payment", "request_id": "req-123", "user_id": 42, ...}
+
+log.warning("Transaction slow", duration_ms=500)
+# Output: {"timestamp": "...", "level": "WARNING", "message": "Transaction slow", "request_id": "req-123", "user_id": 42, "duration_ms": 500, ...}
+```
+
+### Log Rotation
+
+Prevent disk overflow by setting max size and backup count:
+
+```python
+logger = Logger(
     "RotationLogger",
     log_file_path="app.log",
-    max_bytes=5 * 1024 * 1024,
-    backup_count=3
+    max_bytes=10 * 1024 * 1024, # 10 MB
+    backup_count=5
 )
 ```
 
@@ -56,11 +79,9 @@ FlexiLogger provides a `GetTraceback` class for managing exceptions:
 
 ```python
 import os
-
-os.environ['LOG_PATH'] = 'app.log'  # noqa
 from FlexiLogger import Logger, GetTraceback
 
-logger = Logger(__file__, log_file_open_format='w')
+logger = Logger(__file__)
 traceback_handler = GetTraceback(logger)
 
 try:
@@ -78,6 +99,7 @@ FlexiLogger uses several environment variables to customize its behavior:
 | Variable Name              | Description                                                                                                  | Default Value |
 |----------------------------|--------------------------------------------------------------------------------------------------------------|---------------|
 | `LOG_PATH`                 | Specifies the path to the log file. If not set, logging to a file is disabled.                               | `None`        |
+| `LOGGER_JSON_FORMAT`       | Enables JSON output format. Values: `true`/`1` or `false`/`0`.                                               | `false`       |
 | `LOG_TRACEBACK_PATH`       | Specifies the path where traceback will be saved. If not set, the file defined in the `Logger` will be used. | `None`        |
 | `LOGGER_CONSOLE_LOG_LEVEL` | Sets the console log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.              | `DEBUG`       |
 | `LOGGER_FILE_LOG_LEVEL`    | Sets the file log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.                 | `DEBUG`       |
@@ -90,29 +112,9 @@ Set the environment variables before running your script:
 
 ```bash
 export LOG_PATH="app.log"
+export LOGGER_JSON_FORMAT="true"
 export LOGGER_CONSOLE_LOG_LEVEL="INFO"
-export LOGGER_FILE_LOG_LEVEL="ERROR"
-export LOGGER_TIME_INFO="false"
 export LOGGER_TIMEZONE="UTC+3"
-```
-
----
-
-## Project Structure
-
-```
-FlexiLogger/
-├── src/
-│   └── FlexiLogger/
-│       ├── __init__.py
-│       ├── gettraceback.py
-│       ├── logger.py
-│       └── py.typed
-├── .pre-commit-config.yaml
-├── CONTRIBUTING.md
-├── LICENSE
-├── pyproject.toml
-└── README.md
 ```
 
 ---
@@ -120,10 +122,3 @@ FlexiLogger/
 ## License
 
 FlexiLogger is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-## Contributions
-
-Contributions are welcome! Please read our
-[**Contributing Guide**](https://github.com/Neizvestnyj/FlexiLogger/blob/master/CONTRIBUTING.md) to learn how to set up your environment and submit your changes.
