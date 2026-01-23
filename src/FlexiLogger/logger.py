@@ -1,8 +1,11 @@
 import copy
+import datetime
 import logging
 import os
+import re
 import sys
-from typing import Union
+import time
+from typing import Optional, Union
 
 os.environ["LOGGER_TIME_INFO"] = "true"
 
@@ -21,6 +24,56 @@ def get_log_level(env_var: str, default: int) -> int:
     level_name = os.getenv(env_var, "").upper()
 
     return getattr(logging, level_name, default)
+
+
+def _parse_timezone(tz_str: Optional[str]) -> Optional[datetime.timezone]:
+    """
+    Parse timezone string into datetime.timezone object.
+
+    :param tz_str: Timezone string (e.g., "UTC", "UTC+3", "UTC-05:00", "LOCAL")
+    :return: datetime.timezone object or None for local time
+    """
+    if not tz_str:
+        # Default to UTC if not specified
+        return datetime.timezone.utc
+
+    tz_str = tz_str.strip().upper()
+
+    if tz_str == "LOCAL":
+        return None  # Use system local time
+
+    if tz_str == "UTC":
+        return datetime.timezone.utc
+
+    # Regex for UTC+HH:MM or UTC+HH
+    match = re.match(r"^UTC([+-])(\d+)(?::(\d+))?$", tz_str)
+    if match:
+        sign = 1 if match.group(1) == "+" else -1
+        hours = int(match.group(2))
+        minutes = int(match.group(3)) if match.group(3) else 0
+        offset = datetime.timedelta(hours=hours, minutes=minutes)
+        return datetime.timezone(sign * offset)
+
+    return datetime.timezone.utc  # Fallback to UTC
+
+
+def _get_time_converter(tz: Optional[datetime.timezone]):
+    """
+    Create a time converter function for the specified timezone.
+
+    :param tz: datetime.timezone object or None for local time
+    :return: converter function compatible with logging.Formatter.converter
+    """
+    if tz is None:
+        return time.localtime
+
+    def converter(timestamp: Optional[float] = None) -> time.struct_time:
+        if timestamp is None:
+            timestamp = time.time()
+        dt = datetime.datetime.fromtimestamp(timestamp, tz)
+        return dt.timetuple()
+
+    return converter
 
 
 class Logger(logging.Logger):
@@ -44,6 +97,8 @@ class Logger(logging.Logger):
         is_format: bool = True,
         time_info: bool = True,
         encoding: str = "utf-8",
+        timezone: Union[str, None] = None,
+        date_format: Union[str, None] = None,
     ):
         """
         :param name: The name of the logger. Typically, this is the module name or a descriptive name for the logger.
@@ -54,6 +109,8 @@ class Logger(logging.Logger):
         :param is_format: Whether to apply formatting to the log messages. If True, log messages will include additional information like log levels and timestamps. Default is True.
         :param time_info: Whether to include timestamps in the log messages. If True, each log message will have a timestamp. Default is True.
         :param encoding: The encoding to use when writing to the log file. Default is 'utf-8'.
+        :param timezone: Timezone for timestamps. Can be "UTC", "LOCAL", "UTC+3", etc. Defaults to LOGGER_TIMEZONE env var or UTC.
+        :param date_format: The format string for timestamps. If None, uses default format.
 
         Log levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
         If the `log_file_path` parameter is provided, the logs will be visible in the log file.
@@ -70,6 +127,13 @@ class Logger(logging.Logger):
 
         self._encoding = encoding
 
+        # Determine timezone
+        if timezone is None:
+            timezone = os.getenv("LOGGER_TIMEZONE")
+
+        self._tz_object = _parse_timezone(timezone)
+        self._time_converter = _get_time_converter(self._tz_object)
+
         # Enable time formatting if required
         if time_info and os.getenv("LOGGER_TIME_INFO", "true") in ["true", "1"]:
             self.FORMAT = "%(asctime)s.%(msecs)03d: " + self.FORMAT
@@ -81,17 +145,18 @@ class Logger(logging.Logger):
 
         # Add file handler
         if self._log_file_path:
-            self._setup_file_handler(self._log_file_path, log_file_open_format, file_log_level)
+            self._setup_file_handler(self._log_file_path, log_file_open_format, file_log_level, date_format)
 
         # Add console handler
         if is_format:
-            self._setup_console_handler(console_log_level)
+            self._setup_console_handler(console_log_level, date_format)
 
     def _setup_file_handler(
         self,
         log_path: str,
         log_file_open_format: str,
         file_log_level: int,
+        date_format: Union[str, None],
     ) -> None:
         """
         Set up the file handler for logging.
@@ -99,26 +164,38 @@ class Logger(logging.Logger):
         :param log_path: path to the log file (guaranteed to be a string)
         :param log_file_open_format: mode for opening the log file (e.g., 'a', 'w')
         :param file_log_level: logging level for the file handler
+        :param date_format: custom date format string
         """
 
         if not os.path.exists(log_path):
             with open(log_path, "w", encoding=self._encoding):
                 self.info(f"Log file: {log_path} - created")
 
-        fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, self.DATE_FORMAT)
+        use_date_format = date_format if date_format else self.DATE_FORMAT
+        fh_formatter = logging.Formatter(self.LOG_FILE_FORMAT, use_date_format)
+        fh_formatter.converter = self._time_converter
+
         file_handler = FormatLogLevelSpaces(log_path, mode=log_file_open_format, encoding=self._encoding)
         file_handler.setLevel(file_log_level)
         file_handler.setFormatter(fh_formatter)
         self.addHandler(file_handler)
 
-    def _setup_console_handler(self, console_log_level: int) -> None:
+    def _setup_console_handler(
+        self,
+        console_log_level: int,
+        date_format: Union[str, None],
+    ) -> None:
         """
         Set up the console handler for logging.
 
         :param console_log_level: logging level for the console handler
+        :param date_format: custom date format string
         """
 
-        console_color_formatter = logging.Formatter(self.FORMAT, self.DATE_FORMAT)
+        use_date_format = date_format if date_format else self.DATE_FORMAT
+        console_color_formatter = logging.Formatter(self.FORMAT, use_date_format)
+        console_color_formatter.converter = self._time_converter
+
         console = ColoredConsoleHandler(stream=sys.stdout)
         console.setLevel(console_log_level)
         console.setFormatter(console_color_formatter)

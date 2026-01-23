@@ -2,7 +2,7 @@ import os
 import sys
 import traceback
 from traceback import FrameSummary
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 try:
     from .logger import Logger
@@ -38,7 +38,7 @@ class GetTraceback:
         else:
             self._log_file_path = None
 
-    def _get_traceback(self, text: str, print_full_exception=True) -> tuple:
+    def _get_traceback(self, text: str, print_full_exception: bool = True) -> Tuple[bool, Optional[FrameSummary], str]:
         """
         Extracts traceback information and logs it.
 
@@ -51,10 +51,11 @@ class GetTraceback:
             get_line_error = True
             exc_type, exc_obj, exc_tb = sys.exc_info()
 
-            extracted_tb = traceback.extract_tb(exc_tb)
+            extracted_tb_list = traceback.extract_tb(exc_tb)
+            extracted_tb: Optional[FrameSummary] = None
 
-            if extracted_tb and len(extracted_tb) > 0:
-                extracted_tb = extracted_tb[0]
+            if extracted_tb_list:
+                extracted_tb = extracted_tb_list[0]
 
                 if print_full_exception:
                     traceback.print_exception(exc_type, exc_obj, exc_tb)
@@ -101,7 +102,7 @@ class GetTraceback:
 
         return log_text
 
-    def warning(self, text: str, print_full_exception=False) -> None:
+    def warning(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs a warning message with traceback information.
 
@@ -112,7 +113,7 @@ class GetTraceback:
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.warning(log_text)
 
-    def error(self, text: str, print_full_exception=False) -> None:
+    def error(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs an error message with traceback information.
 
@@ -123,7 +124,7 @@ class GetTraceback:
         _, _, log_text = self._get_traceback(text, print_full_exception)
         self.logger.error(log_text)
 
-    def critical(self, text: str, print_full_exception=False) -> None:
+    def critical(self, text: str, print_full_exception: bool = False) -> None:
         """
         Logs a critical message with traceback information.
 

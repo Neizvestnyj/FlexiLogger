@@ -32,9 +32,13 @@ To use FlexiLogger in your project:
 ```python
 from FlexiLogger import Logger
 
+# Standard usage (defaults to UTC)
 logger = Logger(__file__, log_file_path="app.log")
 logger.info("This is an info message")
-logger.error("This is an error message")
+
+# Custom timezone and date format
+logger_tz = Logger("CustomLogger", timezone="UTC+1", date_format="%Y-%m-%d %H:%M:%S")
+logger_tz.info("This message uses UTC+1 and ISO format")
 ```
 
 ### Advanced Traceback Handling
@@ -69,6 +73,7 @@ FlexiLogger uses several environment variables to customize its behavior:
 | `LOGGER_CONSOLE_LOG_LEVEL` | Sets the console log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.              | `DEBUG`       |
 | `LOGGER_FILE_LOG_LEVEL`    | Sets the file log level. Acceptable values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`.                 | `DEBUG`       |
 | `LOGGER_TIME_INFO`         | Enables or disables timestamps in log messages. Values: `true`/`1` or `false`/`0`.                           | `true`        |
+| `LOGGER_TIMEZONE`          | Sets the timezone for timestamps. Values: `UTC` (default), `LOCAL`, `UTC+3`, `UTC-05:00`, etc.               | `UTC`         |
 
 ### Example
 
@@ -79,6 +84,7 @@ export LOG_PATH="app.log"
 export LOGGER_CONSOLE_LOG_LEVEL="INFO"
 export LOGGER_FILE_LOG_LEVEL="ERROR"
 export LOGGER_TIME_INFO="false"
+export LOGGER_TIMEZONE="UTC+3"
 ```
 
 ---
